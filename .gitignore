@@ -1,0 +1,11 @@
+**/.ipynb_checkpoints/
+*.swp
+*.ipynb
+studylog.md
+.Trash*
+**/__pycache__/
+**/resultsDir/
+**.tif
+**.png
+**/clones
+
