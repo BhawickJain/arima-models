@@ -104,20 +104,36 @@ plt.axhline(0, color='k', linestyle='--', alpha=0.2)
 
 # ACF
 
+
+Auto-Correlation Function (ACF) performs pearson correlation across different lags of the same time-series. In the code below we auto-correlate the first 20 lags and plot as a bar chart. ACF gives us an overview of the direct and in-direct correlation of the lags instead of their influence through time.
+
 ```{python}
-acf_vals = acf(first_diff)
+acf_vals = acf(first_diff, fft=False)
 num_lags = 20
-plt.bar(range(num_lags), acf_vals[:num_lags])
+# plt.bar(range(num_lags), acf_vals[:num_lags])
+
+# my own
+fig, ax = plt.subplots()
+_ = ax.grid(color='lightgray')
+_ = ax.set_axisbelow(True)
+_ = ax.bar(range(num_lags), acf_vals[:num_lags], color='black', zorder=1)
+_ = ax.set_xticks(range(num_lags+1))
+_ = ax.set(title='ACF')
 ```
 
 ## Based on ACF, we should start with a seasonal MA process
 
+See the spike at Lag Order 12 and 17.
+
 
 # PACF
 
+
+Partial Auto-Correlation Function is similar to the ACF but does not account for the in-direct influences of a value to another. I.e. Jan 2018's effect to Jan 2019 through Feb 2018 -...- Dec 2018, instead of the direct affect that comes from both being January (i.e 12 months apart to an anual period)).
+
 ```{python}
-pacf_vals = pacf(first_diff)
 num_lags = 15
+pacf_vals = pacf(first_diff, nlags=num_lags)
 plt.bar(range(num_lags), pacf_vals[:num_lags])
 ```
 
