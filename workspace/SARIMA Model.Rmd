@@ -17,7 +17,8 @@ jupyter:
 # %config InlineBackend.figure_format = 'svg'
 ```
 
-forked from [ritvikmath-TimeSeries-Analysis](https://github.com/ritvikmath/Time-Series-Analysis/blob/master/SARIMA%20Model.ipynb)
+forked from [ritvikmath-TimeSeries-Analysis](https://github.com/ritvikmath/Time-Series-Analysis/blob/master/SARIMA%20Model.ipynb)  
+[video-walkthrough by ritvik](https://www.youtube.com/watch?v=Al8m6K_stfA)
 
 ```{python jupyter={'outputs_hidden': True}, tags=c()}
 # ! pip install pandas
@@ -30,8 +31,7 @@ forked from [ritvikmath-TimeSeries-Analysis](https://github.com/ritvikmath/Time-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pandas.plotting import register_matplotlib_converters
 from statsmodels.tsa.stattools import acf, pacf
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -50,6 +50,8 @@ def parser(s):
 #read data
 catfish_sales = pd.read_csv('data/catfish.csv', parse_dates=[0], index_col=0, squeeze=True, date_parser=parser)
 ```
+
+`squeeze` argument reduces the any nan, null, 0 columns and can even return a `series` if it can be represented as a single columns datastructure.
 
 ```{python}
 catfish_sales.head()
@@ -72,24 +74,42 @@ pd.infer_freq(catfish_sales.index)
 MS referes to a frequency string [pd-docs-freq_str](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases)
 
 ```{python}
+catfish_sales.asfreq('D')
+```
+
+When using 'D' it organises the data for each day leaving any missing data as `NaN`
+
+```{python}
 start_date = datetime(1996,1,1)
 end_date = datetime(2000,1,1)
 lim_catfish_sales = catfish_sales[start_date:end_date]
 ```
 
+We limit ourselves with a smaller dataset and don't see the rest so we can use this training dataset to predict the trend. We dont see the rest so we don't bias ourselves.
+
 ```{python}
-plt.figure(figsize=(10,4))
-plt.plot(lim_catfish_sales)
-plt.title('Catfish Sales in 1000s of Pounds', fontsize=20)
-plt.ylabel('Sales', fontsize=16)
-for year in range(start_date.year,end_date.year):
-    plt.axvline(pd.to_datetime(str(year)+'-01-01'), color='k', linestyle='--', alpha=0.2)
+fig, ax = plt.subplots(figsize=(10,4))
+_ = ax.plot(lim_catfish_sales, color='black')
+_ = ax.set(title='Catfish Sales in 1000s of Pounds', ylabel='Sales')
+for year in range(start_date.year, end_date.year):
+    _ = ax.axvline(pd.to_datetime(str(year)+'-01-01'), color='k', linestyle='--', alpha=0.2)
+                   
+# original
+# plt.figure(figsize=(10,4))
+# plt.plot(lim_catfish_sales)
+# plt.title('Catfish Sales in 1000s of Pounds', fontsize=20)
+# plt.ylabel('Sales', fontsize=16)
+# for year in range(start_date.year,end_date.year):
+#     plt.axvline(pd.to_datetime(str(year)+'-01-01'), color='k', linestyle='--', alpha=0.2)
 ```
+
+There is a rising linear trend, with clear seasonal peaks and throughs between a 12 month time period.
+
 
 ## Remove the trend
 
 ```{python}
-first_diff = lim_catfish_sales.diff()[1:]
+first_diff = lim_catfish_sales.diff(1)[1:]
 ```
 
 ```{python}
@@ -105,7 +125,10 @@ plt.axhline(0, color='k', linestyle='--', alpha=0.2)
 # ACF
 
 
-Auto-Correlation Function (ACF) performs pearson correlation across different lags of the same time-series. In the code below we auto-correlate the first 20 lags and plot as a bar chart. ACF gives us an overview of the direct and in-direct correlation of the lags instead of their influence through time.
+Auto-Correlation Function (ACF) performs pearson correlation across different lags of the same time-series. In the code below we auto-correlate the first 20 lags and plot as a bar chart. ACF gives us an overview of the direct and in-direct correlation.
+
+
+`ax.set_axisbelow(True)` taken from [so-draw-grid-behind](https://stackoverflow.com/questions/1726391/matplotlib-draw-grid-lines-behind-other-graph-elements)
 
 ```{python}
 acf_vals = acf(first_diff, fft=False)
@@ -119,11 +142,13 @@ _ = ax.set_axisbelow(True)
 _ = ax.bar(range(num_lags), acf_vals[:num_lags], color='black', zorder=1)
 _ = ax.set_xticks(range(num_lags+1))
 _ = ax.set(title='ACF')
+_ = ax.axhline(0.5, color='darkred', linestyle='-', alpha=0.5)
+_ = ax.axhline(-0.5, color='darkred', linestyle='-', alpha=0.5)
 ```
 
 ## Based on ACF, we should start with a seasonal MA process
 
-See the spike at Lag Order 12 and 17.
+See the spike at Lag Order 12
 
 
 # PACF
@@ -131,11 +156,22 @@ See the spike at Lag Order 12 and 17.
 
 Partial Auto-Correlation Function is similar to the ACF but does not account for the in-direct influences of a value to another. I.e. Jan 2018's effect to Jan 2019 through Feb 2018 -...- Dec 2018, instead of the direct affect that comes from both being January (i.e 12 months apart to an anual period)).
 
+
+`plt.rcParams['axes.axisbelow'] = True` taken from [so-draw-grid-behind](https://stackoverflow.com/questions/1726391/matplotlib-draw-grid-lines-behind-other-graph-elements)
+
 ```{python}
 num_lags = 15
 pacf_vals = pacf(first_diff, nlags=num_lags)
-plt.bar(range(num_lags), pacf_vals[:num_lags])
+plt.bar(range(num_lags), pacf_vals[:num_lags], color='black')
+plt.xticks(range(num_lags))
+plt.grid(color='lightgray')
+plt.axhline(1, color='darkred', alpha=0.5)
+plt.axhline(-1, color='darkred', alpha=0.5)
+plt.rcParams['axes.axisbelow'] = True
 ```
+
+`[ ]` Make the graph above a little easier to read
+
 
 ## Based on PACF, we should start with a seasonal AR process
 
@@ -179,13 +215,19 @@ predictions = pd.Series(predictions, index=test_data.index)
 residuals = test_data - predictions
 ```
 
+Residuals is the absolute error difference between the predicted and actual value.
+
 ```{python}
 plt.figure(figsize=(10,4))
-plt.plot(residuals)
+plt.plot(residuals, color='k')
 plt.axhline(0, linestyle='--', color='k')
 plt.title('Residuals from SARIMA Model', fontsize=20)
 plt.ylabel('Error', fontsize=16)
+plt.grid(True, color='lightgrey')
+plt.rcParams['axes.axisbelow']=True
 ```
+
+`[?]` Why might the residuals graph be shaped as it is?
 
 ```{python}
 plt.figure(figsize=(10,4))
@@ -211,7 +253,12 @@ print('Root Mean Squared Error:', np.sqrt(np.mean(residuals**2)))
 
 # Using the Rolling Forecast Origin
 
-```{python}
+
+We are predicting the next month with the all the knowlegde of the previous data so we only forcast a month ahead and repeat with knowledge of the new month to predict n+1 month.
+
+We use $0$ to $n-1$ to predict month $n$ and then use the real value of $n$ to predict month $n+1$, we repeat that across all the way. 
+
+```{python tags=c()}
 rolling_predictions = test_data.copy()
 for train_end in test_data.index:
     train_data = lim_catfish_sales[:train_end-timedelta(days=1)]
@@ -228,10 +275,12 @@ rolling_residuals = test_data - rolling_predictions
 
 ```{python}
 plt.figure(figsize=(10,4))
-plt.plot(rolling_residuals)
+plt.plot(rolling_residuals, color='k')
 plt.axhline(0, linestyle='--', color='k')
 plt.title('Rolling Forecast Residuals from SARIMA Model', fontsize=20)
 plt.ylabel('Error', fontsize=16)
+plt.grid(color='lightgrey')
+plt.rcParams['axes.axisbelow']=True
 ```
 
 ```{python}
@@ -248,14 +297,13 @@ for year in range(start_date.year,end_date.year):
     plt.axvline(pd.to_datetime(str(year)+'-01-01'), color='k', linestyle='--', alpha=0.2)
 ```
 
+`[?]` Why do you think it underpredicted the sales for Dec 1999?  
+`[>]` There is either missing data or the underestimation is being infuenced by the slump in sales around Dec 1996-1998
+
 ```{python}
 print('Mean Absolute Percent Error:', round(np.mean(abs(rolling_residuals/test_data)),4))
 ```
 
 ```{python}
 print('Root Mean Squared Error:', np.sqrt(np.mean(rolling_residuals**2)))
-```
-
-```{python}
-
 ```
