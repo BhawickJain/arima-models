@@ -20,7 +20,7 @@ jupyter:
 forked from [ritvikmath-TimeSeries-Analysis](https://github.com/ritvikmath/Time-Series-Analysis/blob/master/SARIMA%20Model.ipynb)  
 [video-walkthrough by ritvik](https://www.youtube.com/watch?v=Al8m6K_stfA)
 
-```{python jupyter={'outputs_hidden': True}, tags=c()}
+```{python tags=c()}
 # ! pip install pandas
 # ! pip install numpy
 # ! pip install matplotlib
@@ -114,7 +114,7 @@ first_diff = lim_catfish_sales.diff(1)[1:]
 
 ```{python}
 plt.figure(figsize=(10,4))
-plt.plot(first_diff)
+plt.plot(first_diff, color='k')
 plt.title('Catfish Sales in 1000s of Pounds', fontsize=20)
 plt.ylabel('Sales', fontsize=16)
 for year in range(start_date.year,end_date.year):
@@ -151,6 +151,10 @@ _ = ax.axhline(-0.5, color='darkred', linestyle='-', alpha=0.5)
 See the spike at Lag Order 12
 
 
+`[?]` How do you use a reasonable threshold when considering a lag order?  
+`[?]` Can you choose multiple lag orders when many cross the threshold?
+
+
 # PACF
 
 
@@ -178,12 +182,61 @@ plt.rcParams['axes.axisbelow'] = True
 
 # Get training and testing sets
 
-```{python}
+```{python tags=c()}
 train_end = datetime(1999,7,1)
 test_end = datetime(2000,1,1)
 
 train_data = lim_catfish_sales[:train_end]
 test_data = lim_catfish_sales[train_end + timedelta(days=1):test_end]
+```
+
+```{python}
+train_data.tail()
+```
+
+```{python}
+test_data
+```
+
+I am beginning to think that the time slices chosen have a bug, surely:
+```python
+test_data = lim_catfish_sales[train_end:test_end + timedelta(days=1)]
+```
+
+Turns out it is not a bug, when the index is a date, the `[:date]` notation includes the limits as well so `date` in the index is included. Slice notation `[start_date:end_date` would include `end_date`, as demonstrated below.
+
+```{python}
+start_date = datetime(1996,1,1)
+train_date = datetime(2000,1,1)
+another_data = lim_catfish_sales[start_date:train_end]
+another_data.head()
+```
+
+```{python active="", eval=FALSE}
+Here is another example
+```
+
+```{python}
+s = pd.Series(
+    data = [1.0, 2.0, 3.0, 4.0, 5.0],
+    index = pd.date_range('1999-12-30', periods=5))
+
+s
+```
+
+```{python}
+s[datetime(2000,1,2):datetime(2000,1,3)]
+```
+
+This is behaviour is different to standard indexed behaviour. Example adapted from [[astrotech-pd-series-slicing](https://pandas.astrotech.io/series/slice.html)]
+
+```{python}
+t = pd.DataFrame([5,6,7,8,9,0])
+t
+```
+
+```{python}
+t[2:5]
 ```
 
 # Fit the SARIMA Model
@@ -228,6 +281,7 @@ plt.rcParams['axes.axisbelow']=True
 ```
 
 `[?]` Why might the residuals graph be shaped as it is?
+`[>]` A pattern such as this means the model is not capturing a trend or cycle as the residual clearly has cycle.
 
 ```{python}
 plt.figure(figsize=(10,4))
